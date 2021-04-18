@@ -1,0 +1,15 @@
+[remap]
+
+importer="ogg_vorbis"
+type="AudioStreamOGGVorbis"
+path="res://.import/Ove - Earth Is All We Have .ogg-7cd59f63a8b38c6d145263770f12e650.oggstr"
+
+[deps]
+
+source_file="res://assets/Ove - Earth Is All We Have .ogg"
+dest_files=[ "res://.import/Ove - Earth Is All We Have .ogg-7cd59f63a8b38c6d145263770f12e650.oggstr" ]
+
+[params]
+
+loop=true
+loop_offset=0

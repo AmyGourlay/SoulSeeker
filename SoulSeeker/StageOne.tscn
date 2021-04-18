@@ -1,0 +1,269 @@
+[gd_scene load_steps=15 format=2]
+
+[ext_resource path="res://Player.tscn" type="PackedScene" id=1]
+[ext_resource path="res://heavenTiles.tres" type="TileSet" id=2]
+[ext_resource path="res://Enemy.tscn" type="PackedScene" id=3]
+[ext_resource path="res://game_background_2/layers/sky.png" type="Texture" id=4]
+[ext_resource path="res://ScreenShake.gd" type="Script" id=5]
+[ext_resource path="res://ChangeStage.tscn" type="PackedScene" id=6]
+[ext_resource path="res://game_background_2/layers/clouds_2.png" type="Texture" id=7]
+[ext_resource path="res://PauseScreen.tscn" type="PackedScene" id=8]
+[ext_resource path="res://Star.tscn" type="PackedScene" id=9]
+[ext_resource path="res://Spike.tscn" type="PackedScene" id=10]
+[ext_resource path="res://assets/Ove-Melaa-Supa-Powa-Loop-A.ogg" type="AudioStream" id=11]
+[ext_resource path="res://StageOne.gd" type="Script" id=12]
+[ext_resource path="res://HeavenBat.tscn" type="PackedScene" id=14]
+
+[sub_resource type="GDScript" id=1]
+script/source = "extends TileMap
+
+
+## Variables to be set when the node is ready
+
+
+# Reference to a new AStar navigation grid node
+onready var astar = AStar.new()
+
+# Used to find the centre of a tile
+onready var half_cell_size = cell_size / 2
+
+# All tiles that can be used for pathfinding
+onready var traversable_tiles = get_used_cells()
+
+# The bounds of the rectangle containing all used tiles on this tilemap
+onready var used_rect = get_used_rect()
+
+
+func _ready():
+
+	# This would hide the navigation_map upon loading, but we'll keep
+	# it commented for this demo - uncomment for your game, most likely
+	# visible = false
+
+	# Add all tiles to the navigation grid
+	_add_traversable_tiles(traversable_tiles)
+
+	# Connects all added tiles
+	_connect_traversable_tiles(traversable_tiles)
+
+
+## Private functions
+
+
+# Adds tiles to the A* grid but does not connect them
+# ie. They will exist on the grid, but you cannot find a path yet
+func _add_traversable_tiles(traversable_tiles):
+
+	# Loop over all tiles
+	for tile in traversable_tiles:
+
+		# Determine the ID of the tile
+		var id = _get_id_for_point(tile)
+
+		# Add the tile to the AStar navigation
+		# NOTE: We use Vector3 as AStar is, internally, 3D. We just don't use Z.
+		astar.add_point(id, Vector3(tile.x, tile.y, 0))
+
+
+# Connects all tiles on the A* grid with their surrounding tiles
+func _connect_traversable_tiles(traversable_tiles):
+
+	# Loop over all tiles
+	for tile in traversable_tiles:
+
+		# Determine the ID of the tile
+		var id = _get_id_for_point(tile)
+
+		# Loops used to search around player (range(3) returns 0, 1, and 2)
+		for x in range(3):
+			for y in range(3):
+
+				# Determines target, converting range variable to -1, 0, and 1
+				var target = tile + Vector2(x - 1, y - 1)
+
+				# Determines target ID
+				var target_id = _get_id_for_point(target)
+
+				# Do not connect if point is same or point does not exist on astar
+				if tile == target or not astar.has_point(target_id):
+					continue
+
+				# Connect points
+				astar.connect_points(id, target_id, true)
+
+
+# Determines a unique ID for a given point on the map
+func _get_id_for_point(point):
+
+	# Offset position of tile with the bounds of the tilemap
+	# This prevents ID's of less than 0, if points are behind (0, 0)
+	var x = point.x - used_rect.position.x
+	var y = point.y - used_rect.position.y
+
+	# Returns the unique ID for the point on the map
+	return x + y * used_rect.size.x
+
+
+## Public functions
+
+# Returns a path from start to end
+# These are real positions, not cell coordinates
+func get_pathx(start, end):
+
+	# Convert positions to cell coordinates
+	var start_tile = world_to_map(start)
+	var end_tile = world_to_map(end)
+
+	# Determines IDs
+	var start_id = _get_id_for_point(start_tile)
+	var end_id = _get_id_for_point(end_tile)
+
+	# Return null if navigation is impossible
+	if not astar.has_point(start_id) or not astar.has_point(end_id):
+		return null
+
+	# Otherwise, find the map
+	var path_map = astar.get_point_path(start_id, end_id)
+
+	# Convert Vector3 array (remember, AStar is 3D) to real world points
+	var path_world = []
+	for point in path_map:
+		var point_world = map_to_world(Vector2(point.x, point.y)) + half_cell_size
+		path_world.append(point_world)
+	return path_world
+"
+
+[node name="StageOne" type="Node2D"]
+script = ExtResource( 12 )
+
+[node name="TileMap" type="TileMap" parent="."]
+scale = Vector2( 0.125, 0.125 )
+tile_set = ExtResource( 2 )
+cell_size = Vector2( 128, 128 )
+format = 1
+tile_data = PoolIntArray( -1441792, 5, 0, -1376256, 5, 0, -1376137, 5, 0, -1310720, 5, 0, -1310601, 5, 0, -1245184, 5, 0, -1245065, 5, 0, -1179648, 5, 0, -1179529, 5, 0, -1114112, 5, 0, -1113993, 5, 0, -1048576, 5, 0, -1048457, 5, 0, -983040, 5, 0, -982921, 5, 0, -917504, 5, 0, -917385, 5, 0, -851968, 5, 0, -851849, 5, 0, -786432, 5, 0, -786313, 5, 0, -720896, 5, 0, -720777, 5, 0, -655360, 5, 0, -655241, 5, 0, -589824, 5, 0, -589705, 5, 0, -524288, 5, 0, -524169, 5, 0, -458752, 5, 0, -458633, 5, 0, -393216, 5, 0, -393097, 5, 0, -327680, 5, 0, -327561, 5, 0, -262144, 5, 0, -262025, 5, 0, -196608, 5, 0, -196489, 5, 0, -131072, 5, 0, -130953, 5, 0, -65536, 5, 0, -65417, 5, 0, 0, 5, 0, 116, 0, 0, 117, 2, 0, 119, 5, 0, 65536, 5, 0, 65650, 0, 0, 65651, 1, 0, 65652, 1, 0, 65653, 1, 0, 65654, 1, 0, 65655, 5, 0, 131072, 5, 0, 131124, 0, 0, 131125, 1, 0, 131126, 1, 0, 131127, 1, 0, 131128, 1, 0, 131129, 2, 0, 131186, 5, 0, 131187, 5, 0, 131188, 5, 0, 131189, 5, 0, 131190, 5, 0, 131191, 5, 0, 196608, 5, 0, 196660, 5, 0, 196661, 5, 0, 196662, 5, 0, 196663, 5, 0, 196664, 5, 0, 196665, 5, 0, 196668, 0, 0, 196669, 2, 0, 196720, 0, 0, 196721, 1, 0, 196722, 5, 0, 196723, 5, 0, 196724, 5, 0, 196725, 5, 0, 196726, 5, 0, 196727, 5, 0, 262144, 5, 0, 262194, 0, 0, 262195, 1, 0, 262196, 5, 0, 262197, 5, 0, 262198, 5, 0, 262199, 5, 0, 262200, 5, 0, 262201, 5, 0, 262204, 5, 0, 262205, 5, 0, 262208, 0, 0, 262209, 2, 0, 262256, 5, 0, 262257, 5, 0, 262258, 5, 0, 262259, 5, 0, 262260, 5, 0, 262261, 5, 0, 262262, 5, 0, 262263, 5, 0, 327680, 5, 0, 327730, 5, 0, 327731, 5, 0, 327732, 5, 0, 327733, 5, 0, 327734, 5, 0, 327735, 5, 0, 327736, 5, 0, 327737, 5, 0, 327744, 5, 0, 327745, 5, 0, 327748, 0, 0, 327749, 2, 0, 327765, 0, 0, 327766, 1, 0, 327767, 2, 0, 327790, 0, 0, 327791, 1, 0, 327792, 5, 0, 327793, 5, 0, 327794, 5, 0, 327795, 5, 0, 327796, 5, 0, 327797, 5, 0, 327798, 5, 0, 327799, 5, 0, 393216, 5, 0, 393232, 8, 0, 393233, 6, 0, 393234, 6, 0, 393235, 6, 0, 393236, 6, 0, 393237, 6, 0, 393238, 6, 0, 393239, 6, 0, 393240, 7, 0, 393264, 0, 0, 393265, 1, 0, 393266, 5, 0, 393267, 5, 0, 393268, 5, 0, 393269, 5, 0, 393270, 5, 0, 393271, 5, 0, 393272, 5, 0, 393273, 5, 0, 393284, 5, 0, 393285, 5, 0, 393288, 0, 0, 393289, 2, 0, 393326, 5, 0, 393327, 5, 0, 393328, 5, 0, 393329, 5, 0, 393330, 5, 0, 393331, 5, 0, 393332, 5, 0, 393333, 5, 0, 393334, 5, 0, 393335, 5, 0, 458752, 5, 0, 458781, 0, 0, 458782, 2, 0, 458800, 5, 0, 458801, 5, 0, 458802, 5, 0, 458803, 5, 0, 458804, 5, 0, 458805, 5, 0, 458806, 5, 0, 458807, 5, 0, 458808, 5, 0, 458809, 5, 0, 458824, 5, 0, 458825, 5, 0, 458833, 0, 0, 458834, 1, 0, 458835, 2, 0, 458841, 0, 0, 458842, 1, 0, 458843, 1, 0, 458844, 1, 0, 458845, 1, 0, 458846, 1, 0, 458847, 1, 0, 458848, 1, 0, 458849, 1, 0, 458850, 2, 0, 458860, 0, 0, 458861, 1, 0, 458862, 5, 0, 458863, 5, 0, 458864, 5, 0, 458865, 5, 0, 458866, 5, 0, 458867, 5, 0, 458868, 5, 0, 458869, 5, 0, 458870, 5, 0, 458871, 5, 0, 524288, 5, 0, 524300, 0, 0, 524301, 2, 0, 524317, 5, 0, 524318, 5, 0, 524334, 0, 0, 524335, 0, 0, 524336, 5, 0, 524337, 5, 0, 524338, 5, 0, 524339, 5, 0, 524340, 5, 0, 524341, 5, 0, 524342, 5, 0, 524343, 5, 0, 524344, 5, 0, 524345, 5, 0, 524396, 5, 0, 524397, 5, 0, 524398, 5, 0, 524399, 5, 0, 524400, 5, 0, 524401, 5, 0, 524402, 5, 0, 524403, 5, 0, 524404, 5, 0, 524405, 5, 0, 524406, 5, 0, 524407, 5, 0, 589824, 5, 0, 589836, 5, 0, 589837, 5, 0, 589853, 5, 0, 589854, 5, 0, 589870, 5, 0, 589871, 5, 0, 589872, 5, 0, 589873, 5, 0, 589874, 5, 0, 589875, 5, 0, 589876, 5, 0, 589877, 5, 0, 589878, 5, 0, 589879, 5, 0, 589880, 5, 0, 589881, 5, 0, 589930, 0, 0, 589931, 1, 0, 589932, 5, 0, 589933, 5, 0, 589934, 5, 0, 589935, 5, 0, 589936, 5, 0, 589937, 5, 0, 589938, 5, 0, 589939, 5, 0, 589940, 5, 0, 589941, 5, 0, 589942, 5, 0, 589943, 5, 0, 655360, 5, 0, 655361, 1, 0, 655362, 1, 0, 655363, 1, 0, 655364, 1, 0, 655365, 1, 0, 655366, 1, 0, 655367, 1, 0, 655368, 1, 0, 655369, 1, 0, 655370, 1, 0, 655371, 1, 0, 655372, 1, 0, 655373, 1, 0, 655374, 1, 0, 655375, 1, 0, 655376, 1, 0, 655377, 1, 0, 655378, 1, 0, 655379, 1, 0, 655380, 1, 0, 655381, 1, 0, 655382, 1, 0, 655383, 1, 0, 655384, 1, 0, 655385, 1, 0, 655386, 1, 0, 655387, 1, 0, 655388, 1, 0, 655389, 1, 0, 655390, 1, 0, 655391, 1, 0, 655392, 1, 0, 655393, 1, 0, 655394, 1, 0, 655395, 1, 0, 655396, 1, 0, 655397, 1, 0, 655398, 1, 0, 655399, 1, 0, 655400, 1, 0, 655401, 1, 0, 655402, 1, 0, 655403, 1, 0, 655404, 1, 0, 655405, 1, 0, 655406, 1, 0, 655407, 1, 0, 655408, 1, 0, 655409, 1, 0, 655410, 1, 0, 655411, 1, 0, 655412, 1, 0, 655413, 1, 0, 655414, 1, 0, 655415, 1, 0, 655416, 1, 0, 655417, 1, 0, 655418, 1, 0, 655419, 1, 0, 655420, 1, 0, 655421, 1, 0, 655422, 1, 0, 655423, 1, 0, 655424, 1, 0, 655425, 1, 0, 655426, 1, 0, 655427, 1, 0, 655428, 1, 0, 655429, 1, 0, 655430, 1, 0, 655431, 1, 0, 655432, 1, 0, 655433, 1, 0, 655434, 1, 0, 655435, 1, 0, 655436, 1, 0, 655437, 1, 0, 655438, 1, 0, 655439, 1, 0, 655440, 1, 0, 655460, 1, 0, 655461, 1, 0, 655462, 1, 0, 655463, 1, 0, 655464, 1, 0, 655465, 1, 0, 655466, 1, 0, 655467, 1, 0, 655468, 1, 0, 655469, 1, 0, 655470, 1, 0, 655471, 1, 0, 655472, 1, 0, 655473, 1, 0, 655474, 1, 0, 655475, 1, 0, 655476, 1, 0, 655477, 1, 0, 655478, 1, 0, 655479, 5, 0, 720896, 5, 0, 720897, 5, 0, 720898, 5, 0, 720899, 5, 0, 720900, 5, 0, 720901, 5, 0, 720902, 5, 0, 720903, 5, 0, 720904, 5, 0, 720905, 5, 0, 720906, 5, 0, 720907, 5, 0, 720908, 5, 0, 720909, 5, 0, 720910, 5, 0, 720911, 5, 0, 720912, 5, 0, 720913, 5, 0, 720914, 5, 0, 720915, 5, 0, 720916, 5, 0, 720917, 5, 0, 720918, 5, 0, 720919, 5, 0, 720920, 5, 0, 720921, 5, 0, 720922, 5, 0, 720923, 5, 0, 720924, 5, 0, 720925, 5, 0, 720926, 5, 0, 720927, 5, 0, 720928, 5, 0, 720929, 5, 0, 720930, 5, 0, 720931, 5, 0, 720932, 5, 0, 720933, 5, 0, 720934, 5, 0, 720935, 5, 0, 720936, 5, 0, 720937, 5, 0, 720938, 5, 0, 720939, 5, 0, 720940, 5, 0, 720941, 5, 0, 720942, 5, 0, 720943, 5, 0, 720944, 5, 0, 720945, 5, 0, 720946, 5, 0, 720947, 5, 0, 720948, 5, 0, 720949, 5, 0, 720950, 5, 0, 720951, 5, 0, 720952, 5, 0, 720953, 5, 0, 720954, 5, 0, 720955, 5, 0, 720956, 5, 0, 720957, 5, 0, 720958, 5, 0, 720959, 5, 0, 720960, 5, 0, 720961, 5, 0, 720962, 5, 0, 720963, 5, 0, 720964, 5, 0, 720965, 5, 0, 720966, 5, 0, 720967, 5, 0, 720968, 5, 0, 720969, 5, 0, 720970, 5, 0, 720971, 5, 0, 720972, 5, 0, 720973, 5, 0, 720974, 5, 0, 720975, 5, 0, 720976, 5, 0, 720977, 5, 0, 720978, 5, 0, 720979, 5, 0, 720980, 5, 0, 720981, 5, 0, 720982, 5, 0, 720983, 5, 0, 720984, 5, 0, 720985, 5, 0, 720986, 5, 0, 720987, 5, 0, 720988, 5, 0, 720989, 5, 0, 720990, 5, 0, 720991, 5, 0, 720992, 5, 0, 720993, 5, 0, 720994, 5, 0, 720995, 5, 0, 720996, 5, 0, 720997, 5, 0, 720998, 5, 0, 720999, 5, 0, 721000, 5, 0, 721001, 5, 0, 721002, 5, 0, 721003, 5, 0, 721004, 5, 0, 721005, 5, 0, 721006, 5, 0, 721007, 5, 0, 721008, 5, 0, 721009, 5, 0, 721010, 5, 0, 721011, 5, 0, 721012, 5, 0, 721013, 5, 0, 721014, 5, 0, 721015, 5, 0 )
+script = SubResource( 1 )
+
+[node name="ParallaxBackground" type="ParallaxBackground" parent="."]
+scroll_base_scale = Vector2( 0.5, 0.5 )
+
+[node name="ParallaxLayer" type="ParallaxLayer" parent="ParallaxBackground"]
+
+[node name="Sprite" type="Sprite" parent="ParallaxBackground/ParallaxLayer"]
+position = Vector2( -1.69407e-21, -254.524 )
+scale = Vector2( 1, 0.497091 )
+texture = ExtResource( 4 )
+centered = false
+offset = Vector2( 0, -180 )
+
+[node name="Sprite2" type="Sprite" parent="ParallaxBackground/ParallaxLayer"]
+position = Vector2( 960, 104 )
+scale = Vector2( 0.991667, 1 )
+texture = ExtResource( 7 )
+
+[node name="Player" parent="." instance=ExtResource( 1 )]
+position = Vector2( 32, 56 )
+
+[node name="Enemy" parent="." instance=ExtResource( 3 )]
+position = Vector2( 248, 128 )
+speed = 20
+hp = 3
+size = Vector2( 0.5, 0.5 )
+
+[node name="Enemy2" parent="." instance=ExtResource( 3 )]
+position = Vector2( 288, 64 )
+speed = 60
+size = Vector2( 0.5, 0.5 )
+
+[node name="ScreenShake" type="Node2D" parent="."]
+script = ExtResource( 5 )
+
+[node name="Tween" type="Tween" parent="ScreenShake"]
+
+[node name="ChangeStage" parent="." instance=ExtResource( 6 )]
+position = Vector2( 1872, -16 )
+scale = Vector2( 0.5, 0.5 )
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="PauseScreen" parent="CanvasLayer" instance=ExtResource( 8 )]
+visible = false
+
+[node name="Star" parent="." instance=ExtResource( 9 )]
+position = Vector2( 896, 8 )
+
+[node name="Star2" parent="." instance=ExtResource( 9 )]
+position = Vector2( 632, 136 )
+
+[node name="Star3" parent="." instance=ExtResource( 9 )]
+position = Vector2( 144, 144 )
+
+[node name="Spike" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1304, 168 )
+
+[node name="Spike18" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1320, 168 )
+
+[node name="Spike19" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1336, 168 )
+
+[node name="Spike13" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1352, 168 )
+
+[node name="Spike14" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1368, 168 )
+
+[node name="Spike15" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1384, 168 )
+
+[node name="Spike16" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1400, 168 )
+
+[node name="Spike17" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1416, 168 )
+
+[node name="Spike2" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1432, 168 )
+
+[node name="Spike3" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1448, 168 )
+
+[node name="Spike4" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1464, 168 )
+
+[node name="Spike5" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1480, 168 )
+
+[node name="Spike6" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1496, 168 )
+
+[node name="Spike7" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1512, 168 )
+
+[node name="Spike8" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1528, 168 )
+
+[node name="Spike9" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1544, 168 )
+
+[node name="Spike10" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1560, 168 )
+
+[node name="Spike11" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1576, 168 )
+
+[node name="Spike12" parent="." instance=ExtResource( 10 )]
+position = Vector2( 1592, 168 )
+
+[node name="AudioStreamPlayer2D" type="AudioStreamPlayer2D" parent="."]
+stream = ExtResource( 11 )
+volume_db = -5.0
+autoplay = true
+max_distance = 100000.0
+
+[node name="Enemy3" parent="." instance=ExtResource( 14 )]
+position = Vector2( 992, -168 )
+
+[node name="Enemy4" parent="." instance=ExtResource( 14 )]
+position = Vector2( 1856, -248 )
+[connection signal="tween_completed" from="ScreenShake/Tween" to="ScreenShake" method="_on_Tween_tween_completed"]
